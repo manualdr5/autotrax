@@ -14,8 +14,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-  <!-- Supabase JS client (vehicle maintenance database) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     *{box-sizing:border-box;}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
     ::-webkit-scrollbar{width:6px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px;}
@@ -80,266 +78,42 @@ if (window.FB_READY) {
 <script type="text/babel">
 const { useState, useMemo, useEffect, useCallback, useRef } = React;
 
-// ─── LOCAL VEHICLE DATABASE ───────────────────────────────────────
-// Maintenance schedule for Lexus LS 430 (2001-2006), sourced from
-// vehicledatabases.com OEM data. 2001-2002 use placeholder schedule;
-// 2003-2006 use real OEM data fetched April 2026.
-const LS430_DB = (function() {
-  function mi(miles, km, items) { return { mileage: { miles, km }, service_items: items }; }
+// ─── API CONFIG ──────────────────────────────────────────────────
+const API_KEY  = "c5bc006a2a0511f19e4d0242ac120003";
+const API_BASE = "https://api.vehicledatabases.com";
 
-  // 2001-2002 placeholder schedule (real data pending)
-  const A = ["Replace Engine Oil","Replace Engine Oil Filter","Road-Test Vehicle","Rotate Tires"];
-  const B = ["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Linings","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Lubricate Driveshaft/Propeller Shaft","Replace Engine Oil","Replace Engine Oil Filter","Road-Test Vehicle","Rotate Tires"];
-  const C = [...B,"Replace Cabin Air Filter"];
-  const D30 = ["Inspect Automatic Transmission Fluid","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Lines & Cables","Inspect Brake Linings","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Evaporative Emission System","Inspect Exhaust Pipes & Mounts","Inspect Fuel System","Inspect Fuel Tank Cap Gasket","Inspect Steering Linkage & Boots","Lubricate Driveshaft/Propeller Shaft","Replace Air Cleaner/Element","Replace Cabin Air Filter","Replace Differential Fluid Standard","Replace Engine Oil","Replace Engine Oil Filter","Road-Test Vehicle","Rotate Tires"];
-  const D60 = [...D30,"Replace Automatic Transmission Fluid","Replace Brake Fluid"];
-  const E80 = ["Inspect Automatic Transmission Fluid","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Cables & Lines","Inspect Brake Linings","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Exhaust Pipes & Mounts","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Differential Fluid Standard","Replace Engine Oil","Replace Engine Oil Filter","Road-Test Vehicle","Rotate Tires"];
-  const D120 = [...D60,"Replace Engine Coolant","Inspect Drive Belts","Inspect Rack And Pinion Assembly"];
-  const SCHED = { maintenance: [
-    mi(5000,8000,B),   mi(7500,12000,A),  mi(10000,16100,B), mi(15000,24100,C),
-    mi(20000,32200,A), mi(22500,36200,C), mi(25000,40200,B), mi(30000,48300,D30),
-    mi(35000,56300,B), mi(37500,60400,A), mi(40000,64400,B), mi(45000,72400,C),
-    mi(47500,76400,A), mi(50000,80500,B), mi(55000,88500,B), mi(57500,92500,A),
-    mi(60000,96600,D60),mi(65000,104600,B),mi(67500,108600,A),mi(70000,112700,B),
-    mi(75000,120700,C),mi(77500,124700,A),mi(80000,128700,E80),mi(85000,136800,B),
-    mi(87500,140800,A),mi(90000,144800,B),mi(95000,152900,B),mi(97500,156900,A),
-    mi(100000,160900,D60),mi(105000,169000,C),mi(107500,173000,A),
-    mi(110000,177000,B),mi(115000,185100,B),mi(117500,189100,A),mi(120000,193100,D120),
-  ]};
-
-  // Real OEM data — 2003
-  const SCHED_2003 = { maintenance: [
-    mi(5000,8000,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(7500,12000,["Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(10000,16000,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(15000,24100,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Exhaust Pipes & Mounts","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Cabin Air Filter","Replace Differential Fluid Standard","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(20000,32100,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(22500,36200,["Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(25000,40200,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(30000,48200,["Inspect Automatic Transmission Fluid","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Exhaust Pipes & Mounts","Inspect Fuel Line Connections","Inspect Fuel Tank Band","Inspect Fuel Tank Cap Gasket","Inspect Fuel Tank Vapor Vent Hoses","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Replace Air Cleaner/Element","Replace Brake Fluid","Replace Cabin Air Filter","Replace Differential Fluid Standard","Replace Engine Coolant","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(35000,56300,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(37500,60300,["Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(40000,64300,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(45000,72400,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Exhaust Pipes & Mounts","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Replace Cabin Air Filter","Replace Differential Fluid Standard","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(50000,80400,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(52500,84400,["Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(55000,88500,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(60000,96500,["Inspect Automatic Transmission Fluid","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Exhaust Pipes & Mounts","Inspect Fuel Line Connections","Inspect Fuel Tank Band","Inspect Fuel Tank Cap Gasket","Inspect Fuel Tank Vapor Vent Hoses","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Inspect Valve Clearance","Replace Air Cleaner/Element","Replace Automatic Transmission Fluid","Replace Brake Fluid","Replace Cabin Air Filter","Replace Differential Fluid Standard","Replace Engine Coolant","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(65000,104600,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(67500,108600,["Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(70000,112600,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(75000,120700,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Exhaust Pipes & Mounts","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Cabin Air Filter","Replace Differential Fluid Standard","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(80000,128700,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(82500,132700,["Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(85000,136700,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(90000,144800,["Inspect Automatic Transmission Fluid","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Exhaust Pipes & Mounts","Inspect Fuel Line Connections","Inspect Fuel Tank Band","Inspect Fuel Tank Cap Gasket","Inspect Fuel Tank Vapor Vent Hoses","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Replace Air Cleaner/Element","Replace Brake Fluid","Replace Cabin Air Filter","Replace Differential Fluid Standard","Replace Engine Coolant","Replace Engine Oil","Replace Engine Oil Filter","Replace Timing Belt","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(95000,152800,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(97500,156900,["Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(100000,160900,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(105000,168900,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Exhaust Pipes & Mounts","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Replace Cabin Air Filter","Replace Differential Fluid Standard","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(110000,177000,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(112500,181000,["Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(115000,185000,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(120000,193100,["Inspect Automatic Transmission Fluid","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Exhaust Pipes & Mounts","Inspect Fuel Line Connections","Inspect Fuel Tank Band","Inspect Fuel Tank Cap Gasket","Inspect Fuel Tank Vapor Vent Hoses","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Inspect Valve Clearance","Replace Air Cleaner/Element","Replace Automatic Transmission Fluid","Replace Brake Fluid","Replace Cabin Air Filter","Replace Differential Fluid Standard","Replace Engine Coolant","Replace Engine Oil","Replace Engine Oil Filter","Replace Spark Plugs","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(125000,201100,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(127500,205100,["Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(130000,209200,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(135000,217200,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Exhaust Pipes & Mounts","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Differential Fluid Standard","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(140000,225300,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(142500,229300,["Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(145000,233300,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(150000,241400,["Inspect Automatic Transmission Fluid","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Exhaust Pipes & Mounts","Inspect Fuel Line Connections","Inspect Fuel Tank Band","Inspect Fuel Tank Cap Gasket","Inspect Fuel Tank Vapor Vent Hoses","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Replace Air Cleaner/Element","Replace Brake Fluid","Replace Cabin Air Filter","Replace Differential Fluid Standard","Replace Engine Coolant","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-  ]};
-
-  // Real OEM data — 2004
-  const SCHED_2004 = { maintenance: [
-    mi(5000,8000,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(10000,16000,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(15000,24100,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(20000,32100,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(25000,40200,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(30000,48200,["Inspect Automatic Transmission Fluid","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Fuel Line Connections","Inspect Fuel Tank Band","Inspect Fuel Tank Cap Gasket","Inspect Fuel Tank Vapor Vent Hoses","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Replace Air Cleaner/Element","Replace Brake Fluid","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(35000,56300,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(40000,64300,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(45000,72400,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(50000,80400,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(55000,88500,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(60000,96500,["Inspect Automatic Transmission Fluid","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Fuel Line Connections","Inspect Fuel Tank Band","Inspect Fuel Tank Cap Gasket","Inspect Fuel Tank Vapor Vent Hoses","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Inspect Valve Clearance","Replace Air Cleaner/Element","Replace Automatic Transmission Fluid","Replace Brake Fluid","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(65000,104600,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(70000,112600,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(75000,120700,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(80000,128700,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(85000,136700,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(90000,144800,["Inspect Automatic Transmission Fluid","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Fuel Line Connections","Inspect Fuel Tank Band","Inspect Fuel Tank Cap Gasket","Inspect Fuel Tank Vapor Vent Hoses","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Replace Air Cleaner/Element","Replace Brake Fluid","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Replace Timing Belt","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(95000,152800,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(100000,160900,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Cabin Air Filter","Replace Engine Coolant","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(105000,168900,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(110000,177000,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(115000,185000,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Engine Coolant","Inspect Steering Linkage & Boots","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(120000,193100,["Inspect Automatic Transmission Fluid","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Fuel Line Connections","Inspect Fuel Tank Band","Inspect Fuel Tank Cap Gasket","Inspect Fuel Tank Vapor Vent Hoses","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Inspect Valve Clearance","Replace Air Cleaner/Element","Replace Automatic Transmission Fluid","Replace Brake Fluid","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Replace Spark Plugs","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(125000,201100,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(130000,209200,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(135000,217200,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Hoses & Lines","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(140000,225300,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(145000,233300,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(150000,241400,["Inspect Automatic Transmission Fluid","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Fuel Line Connections","Inspect Fuel Tank Band","Inspect Fuel Tank Cap Gasket","Inspect Fuel Tank Vapor Vent Hoses","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Replace Air Cleaner/Element","Replace Brake Fluid","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-  ]};
-
-  // Real OEM data — 2005
-  const SCHED_2005 = { maintenance: [
-    mi(5000,8000,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(10000,16000,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(15000,24100,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(20000,32100,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(25000,40200,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(30000,48200,["Inspect Automatic Transmission Fluid","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Fuel Line Connections","Inspect Fuel Tank Band","Inspect Fuel Tank Cap Gasket","Inspect Fuel Tank Vapor Vent Hoses","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Air Cleaner/Element","Replace Brake Fluid","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(35000,56300,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(40000,64300,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(45000,72400,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(50000,80400,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(55000,88500,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(60000,96500,["Inspect Automatic Transmission Fluid","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Fuel Line Connections","Inspect Fuel Tank Band","Inspect Fuel Tank Cap Gasket","Inspect Fuel Tank Vapor Vent Hoses","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Inspect Valve Clearance","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Air Cleaner/Element","Replace Automatic Transmission Fluid","Replace Brake Fluid","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(65000,104600,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(70000,112600,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(75000,120700,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(80000,128700,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(85000,136700,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(90000,144800,["Inspect Automatic Transmission Fluid","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Fuel Line Connections","Inspect Fuel Tank Band","Inspect Fuel Tank Cap Gasket","Inspect Fuel Tank Vapor Vent Hoses","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Air Cleaner/Element","Replace Brake Fluid","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Replace Timing Belt","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(95000,152800,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(100000,160900,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Cabin Air Filter","Replace Engine Coolant","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(105000,168900,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(110000,177000,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(115000,185000,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Engine Coolant","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(120000,193100,["Inspect Automatic Transmission Fluid","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Fuel Line Connections","Inspect Fuel Tank Band","Inspect Fuel Tank Cap Gasket","Inspect Fuel Tank Vapor Vent Hoses","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Inspect Valve Clearance","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Air Cleaner/Element","Replace Automatic Transmission Fluid","Replace Brake Fluid","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Replace Spark Plugs","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(125000,201100,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(130000,209200,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(135000,217200,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Hoses & Lines","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(140000,225300,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(145000,233300,["Inspect Air Cleaner/Element","Inspect Ball Joint & Dust Covers","Inspect Chassis' Body Nuts & Bolts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(150000,241400,["Inspect Automatic Transmission Fluid","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Driveshaft/Propeller Shaft Dust Boots","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Fuel Line Connections","Inspect Fuel Tank Band","Inspect Fuel Tank Cap Gasket","Inspect Fuel Tank Vapor Vent Hoses","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Air Cleaner/Element","Replace Brake Fluid","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-  ]};
-
-  // Real OEM data — 2006
-  const SCHED_2006 = { maintenance: [
-    mi(5000,8000,["Inspect Air Cleaner/Element","Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(10000,16000,["Inspect Air Cleaner/Element","Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(15000,24100,["Inspect Air Cleaner/Element","Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(20000,32100,["Inspect Air Cleaner/Element","Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(25000,40200,["Inspect Air Cleaner/Element","Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(30000,48200,["Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Fuel Line Connections","Inspect Fuel Tank Band","Inspect Fuel Tank Cap Gasket","Inspect Fuel Tank Vapor Vent Hoses","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Air Cleaner/Element","Replace Brake Fluid","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(35000,56300,["Inspect Air Cleaner/Element","Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(40000,64300,["Inspect Air Cleaner/Element","Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(45000,72400,["Inspect Air Cleaner/Element","Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(50000,80400,["Inspect Air Cleaner/Element","Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(55000,88500,["Inspect Air Cleaner/Element","Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(60000,96500,["Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Fuel Line Connections","Inspect Fuel Tank Band","Inspect Fuel Tank Cap Gasket","Inspect Fuel Tank Vapor Vent Hoses","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Inspect Valve Clearance","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Air Cleaner/Element","Replace Automatic Transmission Fluid","Replace Brake Fluid","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(65000,104600,["Inspect Air Cleaner/Element","Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(70000,112600,["Inspect Air Cleaner/Element","Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(75000,120700,["Inspect Air Cleaner/Element","Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(80000,128700,["Inspect Air Cleaner/Element","Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(85000,136700,["Inspect Air Cleaner/Element","Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(90000,144800,["Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Fuel Line Connections","Inspect Fuel Tank Band","Inspect Fuel Tank Cap Gasket","Inspect Fuel Tank Vapor Vent Hoses","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Air Cleaner/Element","Replace Brake Fluid","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Replace Timing Belt","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(95000,152800,["Inspect Air Cleaner/Element","Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(100000,160900,["Inspect Air Cleaner/Element","Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Cabin Air Filter","Replace Engine Coolant","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(105000,168900,["Inspect Air Cleaner/Element","Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(110000,177000,["Inspect Air Cleaner/Element","Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(115000,185000,["Inspect Air Cleaner/Element","Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Engine Coolant","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(120000,193100,["Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Fuel Line Connections","Inspect Fuel Tank Band","Inspect Fuel Tank Cap Gasket","Inspect Fuel Tank Vapor Vent Hoses","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Inspect Valve Clearance","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Air Cleaner/Element","Replace Automatic Transmission Fluid","Replace Brake Fluid","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Replace Spark Plugs","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(125000,201100,["Inspect Air Cleaner/Element","Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(130000,209200,["Inspect Air Cleaner/Element","Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Engine Coolant","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(135000,217200,["Inspect Air Cleaner/Element","Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Discs/Rotors","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Engine Coolant","Inspect Exhaust Pipes & Mounts","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(140000,225300,["Inspect Air Cleaner/Element","Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Cabin Air Filter","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(145000,233300,["Inspect Air Cleaner/Element","Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Brake Discs/Rotors","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Engine Coolant","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-    mi(150000,241400,["Inspect Axle Shaft Boots","Inspect Ball Joint & Dust Covers","Inspect Body Corrosion & Paint Condition","Inspect Brake Hoses & Lines","Inspect Brake Pads","Inspect Chassis' Body Nuts & Bolts","Inspect Differential Fluid Standard","Inspect Drive Belts","Inspect Exhaust Pipes & Mounts","Inspect Fuel Line Connections","Inspect Fuel Tank Band","Inspect Fuel Tank Cap Gasket","Inspect Fuel Tank Vapor Vent Hoses","Inspect Rack And Pinion Assembly","Inspect Steering Linkage & Boots","Re-Torque Driveshaft/Propeller Shaft Flange","Replace Air Cleaner/Element","Replace Brake Fluid","Replace Cabin Air Filter","Replace Engine Coolant","Replace Engine Oil","Replace Engine Oil Filter","Reset Engine Oil Replacement Reminder Light","Road-Test Vehicle","Rotate Tires"]),
-  ]};
-
-  return {
-    "Lexus": {
-      "LS 430": {
-        years: ["2001","2002","2003","2004","2005","2006"],
-        trims: ["Base 4dr Sedan Automatic"],
-        schedules: { 2001:SCHED, 2002:SCHED, 2003:SCHED_2003, 2004:SCHED_2004, 2005:SCHED_2005, 2006:SCHED_2006 }
-      }
-    }
-  };
-})();
-
-// ─── SUPABASE CLIENT ──────────────────────────────────────────────
-const SB_URL = "https://jjptwcvmkfalflislgps.supabase.co";
-const SB_KEY = "sb_publishable_qoIjH29ssv0PnF7elLLXXw_28clGDil";
-let _sbClient = null;
-function getSB() {
-  if (!_sbClient && window.supabase) {
-    _sbClient = window.supabase.createClient(SB_URL, SB_KEY);
-  }
-  return _sbClient;
+async function fetchByVin(vin) {
+  const res = await fetch(`${API_BASE}/vehicle-maintenance/v4/${vin.trim()}`, {
+    headers: { "x-authkey": API_KEY }
+  });
+  const json = await res.json();
+  if (!res.ok || json.status !== "success") throw new Error(json.message || `Error ${res.status}`);
+  return json.data;
 }
 
-// Fetch all available year/make/model/trim rows (for dropdowns)
-async function sbFetchVehicleOptions() {
-  const sb = getSB();
-  if (!sb) return null;
-  try {
-    const { data, error } = await sb
-      .from("vehicle_schedules")
-      .select("year, make, model, trim")
-      .order("make").order("model").order("year", { ascending: true });
-    return error ? null : data;
-  } catch { return null; }
+async function fetchByYmmt(year, make, model, trim) {
+  const url = `${API_BASE}/vehicle-maintenance/v4/${year}/${encodeURIComponent(make)}/${encodeURIComponent(model)}/${encodeURIComponent(trim)}`;
+  const res = await fetch(url, { headers: { "x-authkey": API_KEY } });
+  const json = await res.json();
+  if (!res.ok || json.status !== "success") throw new Error(json.message || `Error ${res.status}`);
+  return json.data;
 }
 
-// Fetch the maintenance array for a specific vehicle
-async function sbFetchSchedule(year, make, model, trim) {
-  const sb = getSB();
-  if (!sb) return null;
-  try {
-    const { data, error } = await sb
-      .from("vehicle_schedules")
-      .select("maintenance")
-      .eq("year", parseInt(year))
-      .eq("make", make)
-      .eq("model", model)
-      .eq("trim", trim)
-      .single();
-    return (error || !data) ? null : { maintenance: data.maintenance };
-  } catch { return null; }
+// Generic GET helper for discovery endpoints
+async function apiGet(path) {
+  const res = await fetch(`${API_BASE}${path}`, { headers: { "x-authkey": API_KEY } });
+  const json = await res.json();
+  if (!res.ok || json.status !== "success") throw new Error(json.message || `Error ${res.status}`);
+  return json.data;
 }
-
-// ─── LOCAL FALLBACK HELPERS ───────────────────────────────────────
-// Convert LS430_DB to the same flat-row format Supabase returns
-function localVehicleRows() {
-  const rows = [];
-  for (const make of Object.keys(LS430_DB)) {
-    for (const model of Object.keys(LS430_DB[make])) {
-      const entry = LS430_DB[make][model];
-      for (const year of entry.years) {
-        for (const trim of entry.trims) {
-          rows.push({ year: parseInt(year), make, model, trim });
-        }
-      }
-    }
-  }
-  return rows;
-}
-function localSchedule(year, make, model) {
-  return LS430_DB[make]?.[model]?.schedules?.[parseInt(year)] || null;
-}
-
-// ─── DROPDOWN DERIVATION (works with both Supabase rows & local rows)
-function getAvailYears(rows)  {
-  return [...new Set(rows.map(r => String(r.year)))].sort((a,b) => a - b);
-}
-function getAvailMakes(rows, year) {
-  if (!year) return [];
-  return [...new Set(rows.filter(r => String(r.year) === year).map(r => r.make))].sort();
-}
-function getAvailModels(rows, year, make) {
-  if (!make) return [];
-  return [...new Set(rows.filter(r => String(r.year) === year && r.make === make).map(r => r.model))].sort();
-}
-function getAvailTrims(rows, year, make, model) {
-  if (!model) return [];
-  return [...new Set(rows.filter(r => String(r.year) === year && r.make === make && r.model === model).map(r => r.trim))].sort();
+// Normalize API list responses (may be strings or objects)
+function extractList(data, keys = ["name"]) {
+  if (!Array.isArray(data)) return [];
+  return data.map(item => {
+    if (typeof item === "string") return item;
+    for (const k of keys) { if (item[k]) return String(item[k]); }
+    return null;
+  }).filter(Boolean);
 }
 
 function autoCategory(name) {
@@ -988,75 +762,123 @@ function MileageEditor({value,onSave}) {
 
 // ─── FETCH OEM SCHEDULE MODAL ────────────────────────────────────
 function FetchScheduleModal({vehicle, onSuccess, onClose}) {
-  const [rows,    setRows]    = useState(null);   // flat list from Supabase or local
-  const [loading, setLoading] = useState(true);   // loading dropdown options
-  const [submitting, setSub]  = useState(false);
-  const [year,  setYear]  = useState("");
+  const [useVin,  setUseVin]  = useState(!!(vehicle.vin));
+  const [vin,     setVin]     = useState(vehicle.vin || "");
+
+  // Cascading YMMT state
+  const [year,  setYear]  = useState(vehicle.year  || "");
   const [make,  setMake]  = useState("");
   const [model, setModel] = useState("");
   const [trim,  setTrim]  = useState("");
-  const [err,   setErr]   = useState("");
-  const [sbUsed, setSbUsed] = useState(false);
+  const [makes,  setMakes]  = useState([]);
+  const [models, setModels] = useState([]);
+  const [trims,  setTrims]  = useState([]);
+  const [loadingMakes,  setLoadingMakes]  = useState(false);
+  const [loadingModels, setLoadingModels] = useState(false);
+  const [loadingTrims,  setLoadingTrims]  = useState(false);
 
-  // Load vehicle options from Supabase on mount, fall back to local
+  const [loading, setLoading] = useState(false);
+  const [err,     setErr]     = useState("");
+
+  // On mount (YMMT mode): pre-load the full chain for the vehicle
   useEffect(() => {
-    (async () => {
-      const sbRows = await sbFetchVehicleOptions();
-      const finalRows = sbRows || localVehicleRows();
-      setSbUsed(!!sbRows);
-      setRows(finalRows);
-      setLoading(false);
-      // Pre-select if vehicle matches
-      const vy = String(vehicle.year);
-      const yrs = getAvailYears(finalRows);
-      if (yrs.includes(vy)) {
-        setYear(vy);
-        const mks = getAvailMakes(finalRows, vy);
-        if (mks.includes(vehicle.make)) {
-          setMake(vehicle.make);
-          const mods = getAvailModels(finalRows, vy, vehicle.make);
-          if (mods.includes(vehicle.model)) {
-            setModel(vehicle.model);
-            const trs = getAvailTrims(finalRows, vy, vehicle.make, vehicle.model);
-            if (trs.length === 1) setTrim(trs[0]);
-          }
-        }
-      }
-    })();
+    if (useVin || !vehicle.year) return;
+    loadChain(vehicle.year, vehicle.make, vehicle.model);
   }, []);
 
-  function onYearChange(y)  { setYear(y); setMake(""); setModel(""); setTrim(""); }
-  function onMakeChange(mk) {
-    setMake(mk); setModel(""); setTrim("");
-    const mods = getAvailModels(rows, year, mk);
-    if (mods.length === 1) {
-      setModel(mods[0]);
-      const trs = getAvailTrims(rows, year, mk, mods[0]);
-      if (trs.length === 1) setTrim(trs[0]);
-    }
+  async function loadChain(y, preMake, preModel) {
+    // ── Step 1: makes
+    setLoadingMakes(true); setMakes([]); setMake(""); setModels([]); setModel(""); setTrims([]); setTrim("");
+    let ms = [];
+    try {
+      const data = await apiGet(`/vehicle-maintenance/v4/${y}`);
+      ms = extractList(data, ["make","name"]);
+    } catch { ms = Object.keys(MAKES_MODELS).sort(); }
+    setMakes(ms); setLoadingMakes(false);
+
+    const matched = preMake ? (ms.find(x => x.toLowerCase() === preMake.toLowerCase()) || "") : "";
+    if (!matched) return;
+    setMake(matched);
+
+    // ── Step 2: models
+    setLoadingModels(true); setModels([]); setModel(""); setTrims([]); setTrim("");
+    let mods = [];
+    try {
+      const data = await apiGet(`/vehicle-maintenance/v4/${y}/${encodeURIComponent(matched)}`);
+      mods = extractList(data, ["model","name"]);
+    } catch { mods = MAKES_MODELS[preMake] || []; }
+    setModels(mods); setLoadingModels(false);
+
+    const matchedMod = preModel ? (mods.find(x => x.toLowerCase() === preModel.toLowerCase()) || "") : "";
+    if (!matchedMod) return;
+    setModel(matchedMod);
+
+    // ── Step 3: trims
+    await doLoadTrims(y, matched, matchedMod);
   }
-  function onModelChange(mod) {
-    setModel(mod); setTrim("");
-    const trs = getAvailTrims(rows, year, make, mod);
-    if (trs.length === 1) setTrim(trs[0]);
+
+  async function doLoadTrims(y, mk, mod) {
+    setLoadingTrims(true); setTrims([]); setTrim("");
+    try {
+      const data = await apiGet(`/vehicle-maintenance/v4/${y}/${encodeURIComponent(mk)}/${encodeURIComponent(mod)}`);
+      setTrims(extractList(data, ["trim","name"]));
+    } catch { setTrims([]); }
+    setLoadingTrims(false);
+  }
+
+  async function onYearChange(y) {
+    setYear(y);
+    if (!y) { setMakes([]); setMake(""); setModels([]); setModel(""); setTrims([]); setTrim(""); return; }
+    loadChain(y, "", "");
+  }
+
+  async function onMakeChange(mk) {
+    setMake(mk); setModels([]); setModel(""); setTrims([]); setTrim("");
+    if (!mk || !year) return;
+    setLoadingModels(true);
+    let mods = [];
+    try {
+      const data = await apiGet(`/vehicle-maintenance/v4/${year}/${encodeURIComponent(mk)}`);
+      mods = extractList(data, ["model","name"]);
+    } catch { mods = MAKES_MODELS[mk] || []; }
+    setModels(mods); setLoadingModels(false);
+  }
+
+  async function onModelChange(mod) {
+    setModel(mod); setTrims([]); setTrim("");
+    if (!mod || !year || !make) return;
+    await doLoadTrims(year, make, mod);
   }
 
   async function submit(e) {
-    e.preventDefault(); setErr(""); setSub(true);
-    if (!year || !make || !model || !trim) { setErr("Please select all four fields."); setSub(false); return; }
-    const sbRaw = await sbFetchSchedule(year, make, model, trim);
-    const raw = sbRaw || localSchedule(year, make, model);
-    setSub(false);
-    if (!raw) { setErr("No schedule found for this vehicle."); return; }
-    onSuccess({ trim, apiSchedule: parseApiData(raw), scheduleSource: sbRaw ? "supabase" : "local" });
+    e.preventDefault(); setErr(""); setLoading(true);
+    try {
+      let data, resolvedTrim;
+      if (useVin) {
+        if (!vin || vin.trim().length !== 17) { setErr("Please enter a valid 17-character VIN."); setLoading(false); return; }
+        data = await fetchByVin(vin.trim());
+        resolvedTrim = vehicle.trim;
+      } else {
+        if (!year || !make || !model || !trim) { setErr("Please select a year, make, model, and trim."); setLoading(false); return; }
+        data = await fetchByYmmt(year, make, model, trim);
+        resolvedTrim = trim;
+      }
+      const schedule = parseApiData(data);
+      onSuccess({ vin: useVin ? vin.trim() : vehicle.vin, trim: resolvedTrim, apiSchedule: schedule });
+    } catch(e) {
+      const msg = e.message || "Unknown error";
+      if (msg.includes("Failed to fetch") || msg.includes("CORS") || msg.includes("NetworkError")) {
+        setErr("Network error — if opening this file directly, try serving it via a local web server (e.g., python3 -m http.server).");
+      } else {
+        setErr(msg);
+      }
+    }
+    setLoading(false);
   }
 
   const sel = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed";
+  const inp = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white";
   const lbl = "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1";
-  const availYears  = rows ? getAvailYears(rows) : [];
-  const availMakes  = rows ? getAvailMakes(rows, year) : [];
-  const availModels = rows ? getAvailModels(rows, year, make) : [];
-  const availTrims  = rows ? getAvailTrims(rows, year, make, model) : [];
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
@@ -1065,49 +887,87 @@ function FetchScheduleModal({vehicle, onSuccess, onClose}) {
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center"><SparkleIcon size={16} className="text-white"/></div>
             <div>
-              <h2 className="text-sm font-bold text-gray-800">OEM Maintenance Schedule</h2>
-              <p className="text-xs text-gray-500">{loading ? "Connecting to database…" : (sbUsed ? "Live from Supabase" : "Using local database")}</p>
+              <h2 className="text-sm font-bold text-gray-800">Fetch OEM Schedule</h2>
+              <p className="text-xs text-gray-500">{vehicle.year} {vehicle.make} {vehicle.model}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg"><XIcon size={18} className="text-gray-500"/></button>
         </div>
         <form onSubmit={submit} className="p-5 space-y-4">
-          <div className={`border rounded-lg p-3 text-xs ${sbUsed ? "bg-green-50 border-green-100 text-green-700" : "bg-purple-50 border-purple-100 text-purple-700"}`}>
-            {loading ? "Loading vehicle options…" : (sbUsed ? "Connected to Supabase — live data" : "Supabase unavailable — using local database fallback")}
+          <div className="bg-purple-50 border border-purple-100 rounded-lg p-3 text-xs text-purple-700">
+            Pulls the exact OEM maintenance schedule from the Vehicle Databases API.
+          </div>
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm font-medium">
+            <button type="button" onClick={()=>setUseVin(true)}
+              className={`flex-1 py-2 transition-colors ${useVin?"bg-purple-600 text-white":"bg-white text-gray-600 hover:bg-gray-50"}`}>
+              By VIN
+            </button>
+            <button type="button" onClick={()=>{ setUseVin(false); if(!makes.length && vehicle.year) loadChain(vehicle.year, vehicle.make, vehicle.model); }}
+              className={`flex-1 py-2 transition-colors ${!useVin?"bg-purple-600 text-white":"bg-white text-gray-600 hover:bg-gray-50"}`}>
+              By Year / Make / Model
+            </button>
           </div>
 
-          {/* Year */}
-          <div>
-            <label className={lbl}>Year <span className="text-red-500">*</span></label>
-            <select value={year} onChange={e=>onYearChange(e.target.value)} disabled={loading} className={sel}>
-              <option value="">{loading ? "Loading…" : "Select year"}</option>
-              {availYears.map(y=><option key={y} value={y}>{y}</option>)}
-            </select>
-          </div>
-          {/* Make */}
-          <div>
-            <label className={lbl}>Make <span className="text-red-500">*</span></label>
-            <select value={make} onChange={e=>onMakeChange(e.target.value)} disabled={!year} className={sel}>
-              <option value="">{year ? "Select make" : "Select a year first"}</option>
-              {availMakes.map(m=><option key={m} value={m}>{m}</option>)}
-            </select>
-          </div>
-          {/* Model */}
-          <div>
-            <label className={lbl}>Model <span className="text-red-500">*</span></label>
-            <select value={model} onChange={e=>onModelChange(e.target.value)} disabled={!make} className={sel}>
-              <option value="">{make ? "Select model" : "Select a make first"}</option>
-              {availModels.map(m=><option key={m} value={m}>{m}</option>)}
-            </select>
-          </div>
-          {/* Trim */}
-          <div>
-            <label className={lbl}>Trim <span className="text-red-500">*</span></label>
-            <select value={trim} onChange={e=>setTrim(e.target.value)} disabled={!model} className={sel}>
-              <option value="">{model ? "Select trim" : "Select a model first"}</option>
-              {availTrims.map(t=><option key={t} value={t}>{t}</option>)}
-            </select>
-          </div>
+          {useVin ? (
+            <div>
+              <label className={lbl}>VIN (17 characters) <span className="text-red-500">*</span></label>
+              <input type="text" maxLength={17} placeholder="e.g. 1HGFE2F20NH507968"
+                value={vin} onChange={e=>setVin(e.target.value.toUpperCase())} className={inp}/>
+              <p className="text-xs text-gray-400 mt-1">Find on your registration, insurance card, or driver's door jamb.</p>
+            </div>
+          ) : (
+            <>
+              {/* Year */}
+              <div>
+                <label className={lbl}>Year <span className="text-red-500">*</span></label>
+                <select value={year} onChange={e=>onYearChange(e.target.value)} className={sel}>
+                  <option value="">Select year</option>
+                  {YEARS.map(y=><option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+              {/* Make */}
+              <div>
+                <label className={lbl}>
+                  Make <span className="text-red-500">*</span>
+                  {loadingMakes && <SpinnerIcon size={10} className="inline ml-1 text-purple-500"/>}
+                </label>
+                <select value={make} onChange={e=>onMakeChange(e.target.value)}
+                  disabled={!year || loadingMakes} className={sel}>
+                  <option value="">{loadingMakes ? "Loading makes…" : (year ? "Select make" : "Select a year first")}</option>
+                  {makes.map(m=><option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+              {/* Model */}
+              <div>
+                <label className={lbl}>
+                  Model <span className="text-red-500">*</span>
+                  {loadingModels && <SpinnerIcon size={10} className="inline ml-1 text-purple-500"/>}
+                </label>
+                <select value={model} onChange={e=>onModelChange(e.target.value)}
+                  disabled={!make || loadingModels} className={sel}>
+                  <option value="">{loadingModels ? "Loading models…" : (make ? "Select model" : "Select a make first")}</option>
+                  {models.map(m=><option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+              {/* Trim */}
+              <div>
+                <label className={lbl}>
+                  Trim <span className="text-red-500">*</span>
+                  {loadingTrims && <SpinnerIcon size={10} className="inline ml-1 text-purple-500"/>}
+                </label>
+                <select value={trim} onChange={e=>setTrim(e.target.value)}
+                  disabled={!model || loadingTrims} className={sel}>
+                  <option value="">
+                    {loadingTrims ? "Loading trims…" : (model && trims.length === 0 ? "No trims found — try VIN lookup" : (model ? "Select trim" : "Select a model first"))}
+                  </option>
+                  {trims.map(t=><option key={t} value={t}>{t}</option>)}
+                </select>
+                {model && !loadingTrims && trims.length === 0 && (
+                  <p className="text-xs text-amber-600 mt-1">No trims returned from API — switch to VIN lookup for this vehicle.</p>
+                )}
+              </div>
+            </>
+          )}
 
           {err && <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</div>}
           <div className="flex gap-2">
@@ -1115,9 +975,9 @@ function FetchScheduleModal({vehicle, onSuccess, onClose}) {
               className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
               Cancel
             </button>
-            <button type="submit" disabled={!trim || submitting}
+            <button type="submit" disabled={loading || (!useVin && !trim)}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 text-white text-sm font-semibold hover:bg-purple-700 transition-colors disabled:opacity-60">
-              {submitting ? <><SpinnerIcon size={14}/> Loading…</> : <><SparkleIcon size={14}/> Load Schedule</>}
+              {loading ? <><SpinnerIcon size={14}/> Fetching…</> : <><SparkleIcon size={14}/> Fetch Schedule</>}
             </button>
           </div>
         </form>
@@ -1128,58 +988,84 @@ function FetchScheduleModal({vehicle, onSuccess, onClose}) {
 
 // ─── ADD VEHICLE MODAL ───────────────────────────────────────────
 function AddVehicleModal({onAdd,onClose}) {
-  const [rows,     setRows]    = useState(null);
-  const [loadingOpts, setLoadingOpts] = useState(true);
   const [year,    setYear]    = useState("");
   const [make,    setMake]    = useState("");
   const [model,   setModel]   = useState("");
   const [trim,    setTrim]    = useState("");
   const [mileage, setMileage] = useState("");
   const [nickname,setNick]    = useState("");
+  const [vin,     setVin]     = useState("");
   const [err,     setErr]     = useState("");
-  const [submitting, setSub]  = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      const sbRows = await sbFetchVehicleOptions();
-      setRows(sbRows || localVehicleRows());
-      setLoadingOpts(false);
-    })();
-  }, []);
+  const [makes,  setMakes]  = useState([]);
+  const [models, setModels] = useState([]);
+  const [trims,  setTrims]  = useState([]);
+  const [loadingMakes,  setLoadingMakes]  = useState(false);
+  const [loadingModels, setLoadingModels] = useState(false);
+  const [loadingTrims,  setLoadingTrims]  = useState(false);
 
-  function onYearChange(y)  { setYear(y); setMake(""); setModel(""); setTrim(""); }
-  function onMakeChange(mk) {
-    setMake(mk); setModel(""); setTrim("");
-    const mods = getAvailModels(rows, year, mk);
-    if (mods.length === 1) {
-      setModel(mods[0]);
-      const trs = getAvailTrims(rows, year, mk, mods[0]);
-      if (trs.length === 1) setTrim(trs[0]);
-    }
-  }
-  function onModelChange(mod) {
-    setModel(mod); setTrim("");
-    const trs = getAvailTrims(rows, year, make, mod);
-    if (trs.length === 1) setTrim(trs[0]);
+  async function onYearChange(y) {
+    setYear(y); setMakes([]); setMake(""); setModels([]); setModel(""); setTrims([]); setTrim("");
+    if (!y) return;
+    setLoadingMakes(true);
+    try {
+      const data = await apiGet(`/vehicle-maintenance/v4/${y}`);
+      setMakes(extractList(data, ["make","name"]));
+    } catch { setMakes(Object.keys(MAKES_MODELS).sort()); }
+    setLoadingMakes(false);
   }
 
-  const availYears  = rows ? getAvailYears(rows) : [];
-  const availMakes  = rows ? getAvailMakes(rows, year) : [];
-  const availModels = rows ? getAvailModels(rows, year, make) : [];
-  const availTrims  = rows ? getAvailTrims(rows, year, make, model) : [];
+  async function onMakeChange(mk) {
+    setMake(mk); setModels([]); setModel(""); setTrims([]); setTrim("");
+    if (!mk || !year) return;
+    setLoadingModels(true);
+    try {
+      const data = await apiGet(`/vehicle-maintenance/v4/${year}/${encodeURIComponent(mk)}`);
+      setModels(extractList(data, ["model","name"]));
+    } catch { setModels(MAKES_MODELS[mk] || []); }
+    setLoadingModels(false);
+  }
+
+  async function onModelChange(mod) {
+    setModel(mod); setTrims([]); setTrim("");
+    if (!mod || !year || !make) return;
+    setLoadingTrims(true);
+    try {
+      const data = await apiGet(`/vehicle-maintenance/v4/${year}/${encodeURIComponent(make)}/${encodeURIComponent(mod)}`);
+      setTrims(extractList(data, ["trim","name"]));
+    } catch { setTrims([]); }
+    setLoadingTrims(false);
+  }
 
   async function submit(e) {
     e.preventDefault();
     if (!year||!make||!model||!trim||mileage==="") { setErr("Please fill in all required fields."); return; }
     const mi = parseInt(mileage, 10);
     if (isNaN(mi)||mi<0) { setErr("Enter a valid mileage."); return; }
-    setErr(""); setSub(true);
-    const sbRaw2 = await sbFetchSchedule(year, make, model, trim);
-    const raw = sbRaw2 || localSchedule(year, make, model);
-    setSub(false);
-    const apiSchedule = raw ? parseApiData(raw) : null;
+    setErr(""); setLoading(true);
+
+    // Fetch OEM schedule using YMMT (trim is now known)
+    let apiSchedule=null, resolvedVin="", apiError="";
+    try {
+      let data;
+      if (vin && vin.trim().length===17) {
+        data = await fetchByVin(vin.trim());
+        resolvedVin = vin.trim();
+      } else {
+        data = await fetchByYmmt(year, make, model, trim);
+      }
+      apiSchedule = parseApiData(data);
+    } catch(e) {
+      const m = e.message||"";
+      apiError = m.includes("Failed to fetch")||m.includes("NetworkError")
+        ? "CORS/network error — built-in schedule used."
+        : m;
+    }
+
+    setLoading(false);
     onAdd({ id:uid(), year, make, model, trim, nickname:nickname.trim(),
-            currentMileage:mi, serviceLogs:[], vin:"", apiSchedule, scheduleSource: sbRaw2 ? "supabase" : "local", apiError:"" });
+            currentMileage:mi, serviceLogs:[], vin:resolvedVin, apiSchedule, apiError });
     onClose();
   }
 
@@ -1204,36 +1090,45 @@ function AddVehicleModal({onAdd,onClose}) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={lbl}>Year <span className="text-red-500">*</span></label>
-              <select value={year} onChange={e=>onYearChange(e.target.value)} disabled={loadingOpts} className={sel}>
-                <option value="">{loadingOpts ? "Loading…" : "Select year"}</option>
-                {availYears.map(y=><option key={y} value={y}>{y}</option>)}
+              <select value={year} onChange={e=>onYearChange(e.target.value)} className={sel}>
+                <option value="">Select year</option>
+                {YEARS.map(y=><option key={y} value={y}>{y}</option>)}
               </select>
             </div>
             {/* Make */}
             <div>
-              <label className={lbl}>Make <span className="text-red-500">*</span></label>
-              <select value={make} onChange={e=>onMakeChange(e.target.value)} disabled={!year||loadingOpts} className={sel}>
-                <option value="">{year ? "Select make" : "Year first"}</option>
-                {availMakes.map(m=><option key={m} value={m}>{m}</option>)}
+              <label className={lbl}>
+                Make <span className="text-red-500">*</span>
+                {loadingMakes && <SpinnerIcon size={10} className="inline ml-1 text-blue-500"/>}
+              </label>
+              <select value={make} onChange={e=>onMakeChange(e.target.value)} disabled={!year||loadingMakes} className={sel}>
+                <option value="">{loadingMakes?"Loading…":(year?"Select make":"Year first")}</option>
+                {makes.map(m=><option key={m} value={m}>{m}</option>)}
               </select>
             </div>
           </div>
 
           {/* Model */}
           <div>
-            <label className={lbl}>Model <span className="text-red-500">*</span></label>
-            <select value={model} onChange={e=>onModelChange(e.target.value)} disabled={!make} className={sel}>
-              <option value="">{make ? "Select model" : "Select a make first"}</option>
-              {availModels.map(m=><option key={m} value={m}>{m}</option>)}
+            <label className={lbl}>
+              Model <span className="text-red-500">*</span>
+              {loadingModels && <SpinnerIcon size={10} className="inline ml-1 text-blue-500"/>}
+            </label>
+            <select value={model} onChange={e=>onModelChange(e.target.value)} disabled={!make||loadingModels} className={sel}>
+              <option value="">{loadingModels?"Loading…":(make?"Select model":"Select a make first")}</option>
+              {models.map(m=><option key={m} value={m}>{m}</option>)}
             </select>
           </div>
 
           {/* Trim */}
           <div>
-            <label className={lbl}>Trim <span className="text-red-500">*</span></label>
-            <select value={trim} onChange={e=>setTrim(e.target.value)} disabled={!model} className={sel}>
-              <option value="">{model ? "Select trim" : "Select a model first"}</option>
-              {availTrims.map(t=><option key={t} value={t}>{t}</option>)}
+            <label className={lbl}>
+              Trim <span className="text-red-500">*</span>
+              {loadingTrims && <SpinnerIcon size={10} className="inline ml-1 text-blue-500"/>}
+            </label>
+            <select value={trim} onChange={e=>setTrim(e.target.value)} disabled={!model||loadingTrims} className={sel}>
+              <option value="">{loadingTrims?"Loading…":(model&&trims.length===0?"No trims found":(model?"Select trim":"Select a model first"))}</option>
+              {trims.map(t=><option key={t} value={t}>{t}</option>)}
             </select>
           </div>
 
@@ -1249,14 +1144,25 @@ function AddVehicleModal({onAdd,onClose}) {
             <input type="text" placeholder="e.g. My Daily Driver" value={nickname} onChange={e=>setNick(e.target.value)} className={inp}/>
           </div>
 
+          {/* VIN */}
+          <div className="border-t border-gray-100 pt-4">
+            <label className={lbl}>VIN <span className="text-gray-400">(optional — overrides YMMT for OEM data)</span></label>
+            <input type="text" maxLength={17} placeholder="17-character VIN"
+              value={vin} onChange={e=>setVin(e.target.value.toUpperCase())} className={inp}/>
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <div className="w-2 h-2 rounded-full bg-purple-500 flex-shrink-0"/>
+              <p className="text-xs text-gray-400">If entered, VIN is used instead of trim to fetch OEM data. Found on registration, insurance card, or door jamb.</p>
+            </div>
+          </div>
+
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={onClose}
               className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
               Cancel
             </button>
-            <button type="submit" disabled={!trim||submitting}
+            <button type="submit" disabled={loading||!trim}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60 shadow">
-              {submitting ? <><SpinnerIcon size={14}/> Fetching…</> : "Add Vehicle"}
+              {loading ? <><SpinnerIcon size={14}/> Fetching OEM data…</> : "Add Vehicle"}
             </button>
           </div>
         </form>
@@ -1597,8 +1503,8 @@ function AppContent({ user, onLogout }) {
   function updateMileage(id, m) { setVehicles(p => p.map(v => v.id === id ? {...v, currentMileage: m} : v)); }
   function logService(entry) { setVehicles(p => p.map(v => v.id === activeId ? {...v, serviceLogs: [...v.serviceLogs, entry]} : v)); }
   function deleteLog(logId)  { setVehicles(p => p.map(v => v.id === activeId ? {...v, serviceLogs: v.serviceLogs.filter(l => l.id !== logId)} : v)); }
-  function applyApiSchedule({vin, trim, apiSchedule, scheduleSource}) {
-    setVehicles(p => p.map(v => v.id === activeId ? {...v, vin, trim, apiSchedule, scheduleSource: scheduleSource || v.scheduleSource, apiError: ""} : v));
+  function applyApiSchedule({vin, trim, apiSchedule}) {
+    setVehicles(p => p.map(v => v.id === activeId ? {...v, vin, trim, apiSchedule, apiError: ""} : v));
     setFetchModal(false);
   }
 
@@ -1789,21 +1695,6 @@ function AppContent({ user, onLogout }) {
                       ? <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 border border-purple-200"><SparkleIcon size={10}/> OEM Live Data</span>
                       : <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200">Built-in</span>
                     }
-                    {isApiSched && vehicle.scheduleSource === "supabase" && (
-                      <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span> Supabase
-                      </span>
-                    )}
-                    {isApiSched && vehicle.scheduleSource === "local" && (
-                      <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"></span> Local DB
-                      </span>
-                    )}
-                    {isApiSched && !vehicle.scheduleSource && (
-                      <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-400 border border-gray-200" title="Refresh OEM Schedule to identify source">
-                        <span className="w-1.5 h-1.5 rounded-full bg-gray-300 inline-block"></span> Source unknown
-                      </span>
-                    )}
                   </div>
                   {vehicle.nickname && <p className="text-sm text-gray-500">{vehicle.year} {vehicle.make} {vehicle.model}</p>}
                   {vehicle.apiError && <p className="text-xs text-amber-600 mt-0.5">⚠ {vehicle.apiError}</p>}
@@ -2100,4 +1991,4 @@ ReactDOM.createRoot(document.getElementById("root")).render(
 );
 </script>
 </body>
-</ht            
+</ht
