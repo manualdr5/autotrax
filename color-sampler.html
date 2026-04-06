@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AutoTrax — Accent Color Sampler</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    @keyframes fillBar { from { width: 0%; } to { width: var(--bar-w); } }
+    .animate-bar { animation: fillBar 1s ease-out forwards; }
+    .lift { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+    .lift:hover { transform: translateY(-2px); }
+    .section-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 4px 12px; border-radius: 999px; display: inline-block; margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body style="background: #0a0a0a;">
+
+  <!-- Page header -->
+  <div class="text-center py-8" style="border-bottom: 1px solid #1f1f1f;">
+    <h1 class="text-2xl font-black text-white uppercase tracking-wide">Accent Color Sampler</h1>
+    <p class="text-sm mt-1" style="color: #666;">Bold & Sporty theme — pick your accent color.</p>
+  </div>
+
+  <div class="max-w-3xl mx-auto p-6 space-y-10">
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <!-- OPTION A: ORANGE / AMBER                          -->
+    <!-- ══════════════════════════════════════════════════ -->
+    <div class="rounded-2xl overflow-hidden" style="background: #030712;">
+      <div class="p-6">
+        <span class="section-label" style="background: rgba(249,115,22,0.15); color: #f97316;">Option A — Orange / Amber</span>
+        <p class="text-xs mb-5" style="color: #555;">Classic performance car energy — warm, aggressive, energetic.</p>
+
+        <!-- Nav bar -->
+        <div class="rounded-xl px-5 py-3 flex items-center justify-between mb-4" style="background: #111; border: 1px solid #222;">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background: #f97316;">
+              <svg width="16" height="16" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><path d="M2 8h12M8 2v12"/></svg>
+            </div>
+            <span class="text-white font-black text-sm tracking-wide uppercase">AutoTrax</span>
+          </div>
+          <div class="flex gap-2">
+            <div class="px-3 py-1.5 rounded-lg text-xs font-bold uppercase" style="background: rgba(249,115,22,0.15); color: #f97316; border: 1px solid rgba(249,115,22,0.3);">Schedule</div>
+            <div class="px-3 py-1.5 rounded-lg text-xs font-bold uppercase" style="color: #555;">History</div>
+          </div>
+        </div>
+
+        <!-- Vehicle card -->
+        <div class="rounded-xl p-5 lift" style="background: #111; border: 2px solid rgba(249,115,22,0.3); box-shadow: 0 0 30px rgba(249,115,22,0.08);">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-white font-black text-base uppercase tracking-wide">2004 Lexus LS 430</h3>
+              <p class="text-xs mt-0.5 font-bold" style="color: #f97316;">87,432 MI</p>
+            </div>
+            <div class="flex gap-1.5">
+              <div class="text-center px-3 py-2 rounded-lg" style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25);">
+                <div class="text-lg font-black" style="color: #ef4444;">3</div>
+                <div class="text-[10px] font-bold uppercase" style="color: #f87171;">Over</div>
+              </div>
+              <div class="text-center px-3 py-2 rounded-lg" style="background: rgba(234,179,8,0.1); border: 1px solid rgba(234,179,8,0.25);">
+                <div class="text-lg font-black" style="color: #eab308;">5</div>
+                <div class="text-[10px] font-bold uppercase" style="color: #facc15;">Soon</div>
+              </div>
+              <div class="text-center px-3 py-2 rounded-lg" style="background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25);">
+                <div class="text-lg font-black" style="color: #22c55e;">12</div>
+                <div class="text-[10px] font-bold uppercase" style="color: #4ade80;">Good</div>
+              </div>
+            </div>
+          </div>
+          <!-- Service row -->
+          <div class="rounded-lg p-3.5 mb-2" style="background: rgba(255,255,255,0.03); border-left: 4px solid #ef4444;">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm font-bold text-white uppercase tracking-wide">Replace Engine Oil</span>
+              <button class="px-3 py-1.5 rounded-lg text-xs font-black uppercase" style="background: #22c55e; color: white;">Log</button>
+            </div>
+            <div class="h-2 rounded overflow-hidden" style="background: #222;">
+              <div class="h-full animate-bar" style="--bar-w:100%; background: linear-gradient(90deg, #ef4444, #f87171);"></div>
+            </div>
+          </div>
+          <div class="rounded-lg p-3.5" style="background: rgba(255,255,255,0.03); border-left: 4px solid #eab308;">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm font-bold text-white uppercase tracking-wide">Cabin Air Filter</span>
+              <button class="px-3 py-1.5 rounded-lg text-xs font-black uppercase" style="background: #22c55e; color: white;">Log</button>
+            </div>
+            <div class="h-2 rounded overflow-hidden" style="background: #222;">
+              <div class="h-full animate-bar" style="--bar-w:72%; background: linear-gradient(90deg, #eab308, #facc15);"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <!-- OPTION B: ELECTRIC BLUE                           -->
+    <!-- ══════════════════════════════════════════════════ -->
+    <div class="rounded-2xl overflow-hidden" style="background: #030712;">
+      <div class="p-6">
+        <span class="section-label" style="background: rgba(6,182,212,0.15); color: #06b6d4;">Option B — Electric Blue</span>
+        <p class="text-xs mb-5" style="color: #555;">High-tech racing — neon-inspired, modern performance.</p>
+
+        <div class="rounded-xl px-5 py-3 flex items-center justify-between mb-4" style="background: #111; border: 1px solid #222;">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background: #06b6d4;">
+              <svg width="16" height="16" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><path d="M2 8h12M8 2v12"/></svg>
+            </div>
+            <span class="text-white font-black text-sm tracking-wide uppercase">AutoTrax</span>
+          </div>
+          <div class="flex gap-2">
+            <div class="px-3 py-1.5 rounded-lg text-xs font-bold uppercase" style="background: rgba(6,182,212,0.15); color: #06b6d4; border: 1px solid rgba(6,182,212,0.3);">Schedule</div>
+            <div class="px-3 py-1.5 rounded-lg text-xs font-bold uppercase" style="color: #555;">History</div>
+          </div>
+        </div>
+
+        <div class="rounded-xl p-5 lift" style="background: #111; border: 2px solid rgba(6,182,212,0.3); box-shadow: 0 0 30px rgba(6,182,212,0.08);">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-white font-black text-base uppercase tracking-wide">2004 Lexus LS 430</h3>
+              <p class="text-xs mt-0.5 font-bold" style="color: #06b6d4;">87,432 MI</p>
+            </div>
+            <div class="flex gap-1.5">
+              <div class="text-center px-3 py-2 rounded-lg" style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25);">
+                <div class="text-lg font-black" style="color: #ef4444;">3</div>
+                <div class="text-[10px] font-bold uppercase" style="color: #f87171;">Over</div>
+              </div>
+              <div class="text-center px-3 py-2 rounded-lg" style="background: rgba(234,179,8,0.1); border: 1px solid rgba(234,179,8,0.25);">
+                <div class="text-lg font-black" style="color: #eab308;">5</div>
+                <div class="text-[10px] font-bold uppercase" style="color: #facc15;">Soon</div>
+              </div>
+              <div class="text-center px-3 py-2 rounded-lg" style="background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25);">
+                <div class="text-lg font-black" style="color: #22c55e;">12</div>
+                <div class="text-[10px] font-bold uppercase" style="color: #4ade80;">Good</div>
+              </div>
+            </div>
+          </div>
+          <div class="rounded-lg p-3.5 mb-2" style="background: rgba(255,255,255,0.03); border-left: 4px solid #ef4444;">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm font-bold text-white uppercase tracking-wide">Replace Engine Oil</span>
+              <button class="px-3 py-1.5 rounded-lg text-xs font-black uppercase" style="background: #22c55e; color: white;">Log</button>
+            </div>
+            <div class="h-2 rounded overflow-hidden" style="background: #222;">
+              <div class="h-full animate-bar" style="--bar-w:100%; background: linear-gradient(90deg, #ef4444, #f87171);"></div>
+            </div>
+          </div>
+          <div class="rounded-lg p-3.5" style="background: rgba(255,255,255,0.03); border-left: 4px solid #eab308;">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm font-bold text-white uppercase tracking-wide">Cabin Air Filter</span>
+              <button class="px-3 py-1.5 rounded-lg text-xs font-black uppercase" style="background: #22c55e; color: white;">Log</button>
+            </div>
+            <div class="h-2 rounded overflow-hidden" style="background: #222;">
+              <div class="h-full animate-bar" style="--bar-w:72%; background: linear-gradient(90deg, #eab308, #facc15);"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <!-- OPTION C: RACING RED                              -->
+    <!-- ══════════════════════════════════════════════════ -->
+    <div class="rounded-2xl overflow-hidden" style="background: #030712;">
+      <div class="p-6">
+        <span class="section-label" style="background: rgba(239,68,68,0.15); color: #ef4444;">Option C — Racing Red</span>
+        <p class="text-xs mb-5" style="color: #555;">Ferrari / F1 vibes — bold, iconic, passionate.</p>
+
+        <div class="rounded-xl px-5 py-3 flex items-center justify-between mb-4" style="background: #111; border: 1px solid #222;">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background: #ef4444;">
+              <svg width="16" height="16" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><path d="M2 8h12M8 2v12"/></svg>
+            </div>
+            <span class="text-white font-black text-sm tracking-wide uppercase">AutoTrax</span>
+          </div>
+          <div class="flex gap-2">
+            <div class="px-3 py-1.5 rounded-lg text-xs font-bold uppercase" style="background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3);">Schedule</div>
+            <div class="px-3 py-1.5 rounded-lg text-xs font-bold uppercase" style="color: #555;">History</div>
+          </div>
+        </div>
+
+        <div class="rounded-xl p-5 lift" style="background: #111; border: 2px solid rgba(239,68,68,0.3); box-shadow: 0 0 30px rgba(239,68,68,0.08);">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-white font-black text-base uppercase tracking-wide">2004 Lexus LS 430</h3>
+              <p class="text-xs mt-0.5 font-bold" style="color: #ef4444;">87,432 MI</p>
+            </div>
+            <div class="flex gap-1.5">
+              <div class="text-center px-3 py-2 rounded-lg" style="background: rgba(249,115,22,0.1); border: 1px solid rgba(249,115,22,0.25);">
+                <div class="text-lg font-black" style="color: #f97316;">3</div>
+                <div class="text-[10px] font-bold uppercase" style="color: #fb923c;">Over</div>
+              </div>
+              <div class="text-center px-3 py-2 rounded-lg" style="background: rgba(234,179,8,0.1); border: 1px solid rgba(234,179,8,0.25);">
+                <div class="text-lg font-black" style="color: #eab308;">5</div>
+                <div class="text-[10px] font-bold uppercase" style="color: #facc15;">Soon</div>
+              </div>
+              <div class="text-center px-3 py-2 rounded-lg" style="background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25);">
+                <div class="text-lg font-black" style="color: #22c55e;">12</div>
+                <div class="text-[10px] font-bold uppercase" style="color: #4ade80;">Good</div>
+              </div>
+            </div>
+          </div>
+          <div class="rounded-lg p-3.5 mb-2" style="background: rgba(255,255,255,0.03); border-left: 4px solid #f97316;">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm font-bold text-white uppercase tracking-wide">Replace Engine Oil</span>
+              <button class="px-3 py-1.5 rounded-lg text-xs font-black uppercase" style="background: #22c55e; color: white;">Log</button>
+            </div>
+            <div class="h-2 rounded overflow-hidden" style="background: #222;">
+              <div class="h-full animate-bar" style="--bar-w:100%; background: linear-gradient(90deg, #f97316, #fb923c);"></div>
+            </div>
+          </div>
+          <div class="rounded-lg p-3.5" style="background: rgba(255,255,255,0.03); border-left: 4px solid #eab308;">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm font-bold text-white uppercase tracking-wide">Cabin Air Filter</span>
+              <button class="px-3 py-1.5 rounded-lg text-xs font-black uppercase" style="background: #22c55e; color: white;">Log</button>
+            </div>
+            <div class="h-2 rounded overflow-hidden" style="background: #222;">
+              <div class="h-full animate-bar" style="--bar-w:72%; background: linear-gradient(90deg, #eab308, #facc15);"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <!-- OPTION D: LIME GREEN                              -->
+    <!-- ══════════════════════════════════════════════════ -->
+    <div class="rounded-2xl overflow-hidden" style="background: #030712;">
+      <div class="p-6">
+        <span class="section-label" style="background: rgba(132,204,22,0.15); color: #84cc16;">Option D — Lime Green</span>
+        <p class="text-xs mb-5" style="color: #555;">Track-day energy — Kawasaki / Lamborghini, electric and alive.</p>
+
+        <div class="rounded-xl px-5 py-3 flex items-center justify-between mb-4" style="background: #111; border: 1px solid #222;">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background: #84cc16;">
+              <svg width="16" height="16" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><path d="M2 8h12M8 2v12"/></svg>
+            </div>
+            <span class="text-white font-black text-sm tracking-wide uppercase">AutoTrax</span>
+          </div>
+          <div class="flex gap-2">
+            <div class="px-3 py-1.5 rounded-lg text-xs font-bold uppercase" style="background: rgba(132,204,22,0.15); color: #84cc16; border: 1px solid rgba(132,204,22,0.3);">Schedule</div>
+            <div class="px-3 py-1.5 rounded-lg text-xs font-bold uppercase" style="color: #555;">History</div>
+          </div>
+        </div>
+
+        <div class="rounded-xl p-5 lift" style="background: #111; border: 2px solid rgba(132,204,22,0.3); box-shadow: 0 0 30px rgba(132,204,22,0.08);">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-white font-black text-base uppercase tracking-wide">2004 Lexus LS 430</h3>
+              <p class="text-xs mt-0.5 font-bold" style="color: #84cc16;">87,432 MI</p>
+            </div>
+            <div class="flex gap-1.5">
+              <div class="text-center px-3 py-2 rounded-lg" style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25);">
+                <div class="text-lg font-black" style="color: #ef4444;">3</div>
+                <div class="text-[10px] font-bold uppercase" style="color: #f87171;">Over</div>
+              </div>
+              <div class="text-center px-3 py-2 rounded-lg" style="background: rgba(234,179,8,0.1); border: 1px solid rgba(234,179,8,0.25);">
+                <div class="text-lg font-black" style="color: #eab308;">5</div>
+                <div class="text-[10px] font-bold uppercase" style="color: #facc15;">Soon</div>
+              </div>
+              <div class="text-center px-3 py-2 rounded-lg" style="background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25);">
+                <div class="text-lg font-black" style="color: #22c55e;">12</div>
+                <div class="text-[10px] font-bold uppercase" style="color: #4ade80;">Good</div>
+              </div>
+            </div>
+          </div>
+          <div class="rounded-lg p-3.5 mb-2" style="background: rgba(255,255,255,0.03); border-left: 4px solid #ef4444;">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm font-bold text-white uppercase tracking-wide">Replace Engine Oil</span>
+              <button class="px-3 py-1.5 rounded-lg text-xs font-black uppercase" style="background: #22c55e; color: white;">Log</button>
+            </div>
+            <div class="h-2 rounded overflow-hidden" style="background: #222;">
+              <div class="h-full animate-bar" style="--bar-w:100%; background: linear-gradient(90deg, #ef4444, #f87171);"></div>
+            </div>
+          </div>
+          <div class="rounded-lg p-3.5" style="background: rgba(255,255,255,0.03); border-left: 4px solid #eab308;">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm font-bold text-white uppercase tracking-wide">Cabin Air Filter</span>
+              <button class="px-3 py-1.5 rounded-lg text-xs font-black uppercase" style="background: #22c55e; color: white;">Log</button>
+            </div>
+            <div class="h-2 rounded overflow-hidden" style="background: #222;">
+              <div class="h-full animate-bar" style="--bar-w:72%; background: linear-gradient(90deg, #eab308, #facc15);"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="text-center py-8 text-xs" style="color: #444;">
+    All four use the same Bold &amp; Sporty structure — the accent color changes the personality.
+  </div>
+
+</body>
+</html>
