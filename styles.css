@@ -1,0 +1,1016 @@
+/* ════════════════════════════════════════════════════════════════
+   AutoTrax — Bold & Sporty Theme (styles.css)
+   All colors use CSS custom properties for centralized theming.
+   Change a variable here → changes everywhere in the app.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── CSS Custom Properties (single source of truth for all colors) ── */
+:root {
+  /* Background layers — darkest to lightest */
+  --bg-deep:          #050505;
+  --bg-body:          #0a0a0a;
+  --bg-sidebar:       #0d0d0d;
+  --bg-surface:       #111111;
+  --bg-surface-hover: #1a1a1a;
+  --bg-surface-alt:   rgba(255,255,255,0.03);
+  --bg-input:         #1a1a1a;
+  --bg-modal-overlay: rgba(0,0,0,0.75);
+
+  /* Borders */
+  --border-default:   #222222;
+  --border-subtle:    #1a1a1a;
+  --border-accent:    rgba(249,115,22,0.3);
+
+  /* Primary accent — Orange / Amber */
+  --accent:           #f97316;
+  --accent-hover:     #ea580c;
+  --accent-light:     #fb923c;
+  --accent-glow:      rgba(249,115,22,0.15);
+  --accent-glow-lg:   rgba(249,115,22,0.08);
+
+  /* Text hierarchy */
+  --text-primary:     #ffffff;
+  --text-secondary:   #999999;
+  --text-muted:       #555555;
+  --text-label:       #888888;
+
+  /* Status — Overdue (red) */
+  --status-overdue:        #ef4444;
+  --status-overdue-light:  #f87171;
+  --status-overdue-bg:     rgba(239,68,68,0.1);
+  --status-overdue-border: rgba(239,68,68,0.25);
+
+  /* Status — Due Soon (yellow) */
+  --status-soon:           #eab308;
+  --status-soon-light:     #facc15;
+  --status-soon-bg:        rgba(234,179,8,0.1);
+  --status-soon-border:    rgba(234,179,8,0.25);
+
+  /* Status — Good (green) */
+  --status-good:           #22c55e;
+  --status-good-light:     #4ade80;
+  --status-good-bg:        rgba(34,197,94,0.1);
+  --status-good-border:    rgba(34,197,94,0.25);
+
+  /* Status — Unknown (gray) */
+  --status-unknown:        #666666;
+  --status-unknown-bg:     rgba(102,102,102,0.1);
+  --status-unknown-border: rgba(102,102,102,0.25);
+
+  /* Buttons */
+  --btn-success:       #22c55e;
+  --btn-success-hover: #16a34a;
+  --btn-danger:        #ef4444;
+  --btn-danger-hover:  #dc2626;
+
+  /* Radii */
+  --radius-sm:  8px;
+  --radius-md:  12px;
+  --radius-lg:  16px;
+
+  /* Shadows */
+  --shadow-glow: 0 0 30px var(--accent-glow-lg);
+}
+
+/* ── Base resets ── */
+*  { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg-body);
+  color: var(--text-primary);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar       { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 3px; }
+.scrollbar-none::-webkit-scrollbar { display: none; }
+
+/* ── Touch targets on mobile ── */
+@media(max-width:768px) {
+  button, select, input, a { min-height: 36px; }
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   ANIMATIONS — Full Motion
+   ════════════════════════════════════════════════════════════════ */
+
+/* Loading spinner */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 1s linear infinite; }
+
+/* Slide up entrance (cards, rows) */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.anim-slide-up { animation: slideUp 0.4s ease-out both; }
+
+/* Stagger delays for sequential items */
+.anim-delay-1 { animation-delay: 0.05s; }
+.anim-delay-2 { animation-delay: 0.10s; }
+.anim-delay-3 { animation-delay: 0.15s; }
+.anim-delay-4 { animation-delay: 0.20s; }
+
+/* Fade in */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.anim-fade-in { animation: fadeIn 0.3s ease both; }
+
+/* Pop in — stat counters */
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.7); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.anim-pop { animation: popIn 0.35s ease-out both; }
+
+/* Progress bar fill */
+@keyframes fillBar {
+  from { width: 0%; }
+  to   { width: var(--bar-w, 0%); }
+}
+.anim-bar { animation: fillBar 1s cubic-bezier(0.25,0.46,0.45,0.94) 0.3s both; }
+
+/* Pulsing dot for overdue status */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+.anim-pulse { animation: pulse 2s ease-in-out infinite; }
+
+/* Shimmer text effect for overdue badges */
+@keyframes shimmer {
+  0%   { background-position: -100% 0; }
+  100% { background-position: 200% 0; }
+}
+.anim-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--status-overdue) 0%,
+    var(--status-overdue-light) 50%,
+    var(--status-overdue) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2.5s ease-in-out infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Modal entrance */
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.anim-modal { animation: modalIn 0.25s ease-out both; }
+
+
+/* ════════════════════════════════════════════════════════════════
+   HOVER / TRANSITION EFFECTS
+   ════════════════════════════════════════════════════════════════ */
+
+/* Card lift + glow on hover */
+.hover-lift {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 0 40px var(--accent-glow), 0 12px 40px rgba(0,0,0,0.4);
+}
+
+/* Button scale on hover */
+.hover-scale {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.hover-scale:hover { transform: scale(1.04); }
+
+/* Row hover highlight */
+.hover-row {
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.hover-row:hover { background: var(--bg-surface-hover); }
+
+
+/* ════════════════════════════════════════════════════════════════
+   LAYOUT — App Shell
+   ════════════════════════════════════════════════════════════════ */
+
+/* Full-height flex container */
+.app-shell {
+  height: 100vh;
+  display: flex;
+  background: var(--bg-body);
+  overflow: hidden;
+  position: relative;
+}
+
+/* Full-page screen (auth, loading, setup) */
+.screen-bg {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-body);
+  padding: 16px;
+}
+
+/* Sidebar container — fixed on mobile, relative on desktop */
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 40;
+  width: 288px;
+  background: var(--bg-sidebar);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  height: 100vh;
+  border-right: 1px solid var(--border-default);
+  transition: transform 0.3s ease;
+}
+/* Desktop: sidebar is inline, not overlaid */
+@media(min-width:768px) {
+  .sidebar {
+    position: relative;
+    z-index: auto;
+    width: 256px;
+    transform: translateX(0) !important;
+  }
+}
+
+/* Sidebar sections */
+.sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-default);
+  flex-shrink: 0;
+}
+.sidebar-footer {
+  padding: 12px;
+  border-top: 1px solid var(--border-default);
+  flex-shrink: 0;
+}
+
+/* Sidebar vehicle item */
+.sidebar-item {
+  border-radius: var(--radius-md);
+  padding: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+  border: 1px solid transparent;
+}
+.sidebar-item:hover { background: var(--bg-surface-hover); }
+.sidebar-item.active {
+  background: var(--accent-glow);
+  border-color: transparent;
+  border-left: 3px solid var(--accent);
+}
+
+/* Main content area */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+  background: var(--bg-body);
+}
+
+/* Main header bar */
+.main-header {
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-default);
+  padding: 12px 16px;
+  flex-shrink: 0;
+}
+@media(min-width:640px) {
+  .main-header { padding: 16px 24px; }
+}
+
+/* Mobile top bar — hidden on desktop */
+.mobile-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border-default);
+  flex-shrink: 0;
+}
+@media(min-width:768px) {
+  .mobile-topbar { display: none; }
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   CARDS & SURFACES
+   ════════════════════════════════════════════════════════════════ */
+
+/* Accent-bordered card */
+.card {
+  background: var(--bg-surface);
+  border: 2px solid var(--border-accent);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-glow);
+}
+
+/* Auth card (centered panel) */
+.auth-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+
+/* Service item row — left-border indicates status */
+.service-row {
+  background: var(--bg-surface-alt);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  border-left: 4px solid var(--border-default);
+  transition: background 0.2s ease;
+}
+.service-row:hover { background: var(--bg-surface-hover); }
+.service-row.overdue { border-left-color: var(--status-overdue); }
+.service-row.soon    { border-left-color: var(--status-soon); }
+.service-row.good    { border-left-color: var(--status-good); }
+.service-row.unknown { border-left-color: var(--status-unknown); }
+
+/* History log entry */
+.history-row {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  transition: background 0.2s ease;
+}
+.history-row:hover { background: var(--bg-surface-hover); }
+
+
+/* ════════════════════════════════════════════════════════════════
+   STAT BADGES — Overdue / Soon / Good counters
+   ════════════════════════════════════════════════════════════════ */
+
+.stat-badge {
+  text-align: center;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+}
+.stat-badge.overdue {
+  background: var(--status-overdue-bg);
+  border: 1px solid var(--status-overdue-border);
+  color: var(--status-overdue);
+}
+.stat-badge.soon {
+  background: var(--status-soon-bg);
+  border: 1px solid var(--status-soon-border);
+  color: var(--status-soon);
+}
+.stat-badge.good {
+  background: var(--status-good-bg);
+  border: 1px solid var(--status-good-border);
+  color: var(--status-good);
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   STATUS PILLS — inline status indicators
+   ════════════════════════════════════════════════════════════════ */
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.status-pill.overdue {
+  background: var(--status-overdue);
+  color: var(--text-primary);
+}
+/* Override shimmer so it doesn't clobber the pill background */
+.status-pill.overdue.anim-shimmer {
+  background: var(--status-overdue);
+  -webkit-background-clip: unset;
+  background-clip: unset;
+  -webkit-text-fill-color: var(--text-primary);
+  animation: pulse 2s ease-in-out infinite;
+}
+.status-pill.soon {
+  background: var(--status-soon);
+  color: var(--bg-body);
+}
+.status-pill.good {
+  background: var(--status-good-bg);
+  color: var(--status-good);
+  border: 1px solid var(--status-good-border);
+}
+.status-pill.unknown {
+  background: var(--status-unknown-bg);
+  color: var(--status-unknown);
+  border: 1px solid var(--status-unknown-border);
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   PROGRESS BARS
+   ════════════════════════════════════════════════════════════════ */
+
+.progress-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--border-default);
+  overflow: hidden;
+  width: 100%;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 4px;
+}
+.progress-fill.overdue {
+  background: linear-gradient(90deg, var(--status-overdue), var(--status-overdue-light));
+}
+.progress-fill.soon {
+  background: linear-gradient(90deg, var(--status-soon), var(--status-soon-light));
+}
+.progress-fill.good {
+  background: linear-gradient(90deg, var(--status-good), var(--status-good-light));
+}
+.progress-fill.unknown {
+  background: var(--status-unknown);
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   MODALS
+   ════════════════════════════════════════════════════════════════ */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-modal-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 16px;
+}
+
+.modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  overflow: hidden;
+  box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   FORM ELEMENTS
+   ════════════════════════════════════════════════════════════════ */
+
+/* Text / number / email / date inputs */
+.input-field {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.input-field:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+.input-field::placeholder { color: var(--text-muted); }
+.input-field:disabled     { opacity: 0.5; cursor: not-allowed; }
+
+/* Textarea inherits input-field styles */
+textarea.input-field { resize: none; }
+
+/* Select dropdown */
+.select-field {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 14px;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+.select-field:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+.select-field:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Select option styling (limited browser support) */
+.select-field option {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+/* Form label */
+.input-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-label);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 4px;
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   BUTTONS
+   ════════════════════════════════════════════════════════════════ */
+
+/* Base button */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 900;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: 10px 16px;
+  transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Primary — accent orange */
+.btn-primary {
+  background: var(--accent);
+  color: var(--text-primary);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  transform: scale(1.02);
+  box-shadow: 0 0 20px var(--accent-glow);
+}
+
+/* Secondary — outlined */
+.btn-secondary {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+/* Success — green */
+.btn-success {
+  background: var(--btn-success);
+  color: var(--text-primary);
+}
+.btn-success:hover:not(:disabled) {
+  background: var(--btn-success-hover);
+  transform: scale(1.04);
+  box-shadow: 0 0 16px rgba(34,197,94,0.3);
+}
+
+/* Danger — red */
+.btn-danger {
+  background: var(--btn-danger);
+  color: var(--text-primary);
+}
+.btn-danger:hover:not(:disabled) {
+  background: var(--btn-danger-hover);
+}
+
+/* Small variant */
+.btn-sm { padding: 6px 12px; font-size: 11px; }
+
+/* Full width */
+.btn-block { width: 100%; }
+
+/* Icon-only button */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  transition: background 0.2s, color 0.2s;
+}
+.btn-icon:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+.btn-icon.danger:hover {
+  background: var(--status-overdue-bg);
+  color: var(--status-overdue);
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   TAB & FILTER BUTTONS
+   ════════════════════════════════════════════════════════════════ */
+
+/* Tab button */
+.tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.tab-btn:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-secondary);
+}
+.tab-btn.active {
+  background: var(--accent);
+  color: var(--text-primary);
+}
+
+/* Filter chip (category / status filters) */
+.filter-chip {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-default);
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.filter-chip:hover {
+  border-color: var(--accent);
+  color: var(--text-secondary);
+}
+.filter-chip.active {
+  background: var(--text-primary);
+  color: var(--bg-body);
+  border-color: var(--text-primary);
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   BADGES & PILLS
+   ════════════════════════════════════════════════════════════════ */
+
+/* OEM data badge */
+.badge-oem {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--accent-glow);
+  color: var(--accent);
+  border: 1px solid var(--border-accent);
+}
+
+/* Built-in schedule badge */
+.badge-builtin {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--bg-surface-hover);
+  color: var(--text-muted);
+  border: 1px solid var(--border-default);
+}
+
+/* Source badge (Supabase / Local DB) */
+.badge-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg-surface-hover);
+  color: var(--text-muted);
+  border: 1px solid var(--border-default);
+}
+.badge-source.supabase {
+  background: var(--status-good-bg);
+  color: var(--status-good);
+  border: 1px solid var(--status-good-border);
+}
+.badge-source.local {
+  background: var(--status-soon-bg);
+  color: var(--status-soon);
+  border: 1px solid var(--status-soon-border);
+}
+.badge-source.unknown {
+  background: var(--status-unknown-bg);
+  color: var(--status-unknown);
+  border: 1px solid var(--status-unknown-border);
+}
+
+/* Priority category badge */
+.badge-category {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.badge-category.critical { background: var(--status-overdue-bg); color: var(--status-overdue); }
+.badge-category.high     { background: var(--accent-glow);       color: var(--accent); }
+.badge-category.medium   { background: var(--status-soon-bg);    color: var(--status-soon); }
+.badge-category.low      { background: rgba(59,130,246,0.1);     color: #60a5fa; }
+
+/* Priority indicator dots (small circles next to service names) */
+.dot-critical { background: var(--status-overdue); }
+.dot-high     { background: var(--accent); }
+.dot-medium   { background: var(--status-soon); }
+.dot-low      { background: #60a5fa; }
+
+/* Sidebar overdue/soon badges */
+.sidebar-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+.sidebar-badge.overdue {
+  background: var(--status-overdue);
+  color: var(--text-primary);
+}
+.sidebar-badge.soon {
+  background: var(--status-soon);
+  color: var(--bg-body);
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   ALERTS
+   ════════════════════════════════════════════════════════════════ */
+
+.alert {
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+}
+.alert-error {
+  color: var(--status-overdue);
+  background: var(--status-overdue-bg);
+  border: 1px solid var(--status-overdue-border);
+}
+.alert-success {
+  color: var(--status-good);
+  background: var(--status-good-bg);
+  border: 1px solid var(--status-good-border);
+}
+.alert-info {
+  color: var(--accent);
+  background: var(--accent-glow);
+  border: 1px solid var(--border-accent);
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   TYPOGRAPHY — Bold & Sporty character
+   ════════════════════════════════════════════════════════════════ */
+
+/* Heading style — uppercase, heavy, tracked */
+.text-heading {
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+}
+
+/* Accent-colored text */
+.text-accent {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   USER MENU (sidebar popup)
+   ════════════════════════════════════════════════════════════════ */
+
+/* User avatar circle */
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+/* User popover menu (appears above user row) */
+.user-popover {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  margin-bottom: 4px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: 0 -8px 30px rgba(0,0,0,0.4);
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   WELCOME / EMPTY STATE
+   ════════════════════════════════════════════════════════════════ */
+
+.empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px;
+}
+
+.empty-state-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  background: var(--accent-glow);
+  border: 2px solid var(--border-accent);
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   2FA CODE INPUT (special styling)
+   ════════════════════════════════════════════════════════════════ */
+
+.code-input {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  font-size: 24px;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+  letter-spacing: 0.3em;
+  text-align: center;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.code-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+.code-input::placeholder { color: var(--text-muted); }
+
+
+/* ════════════════════════════════════════════════════════════════
+   QR CODE CONTAINER
+   ════════════════════════════════════════════════════════════════ */
+
+.qr-container {
+  display: flex;
+  justify-content: center;
+  background: #ffffff;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+
+/* Manual key display */
+.secret-display {
+  background: var(--bg-surface-hover);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  text-align: center;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+  font-size: 13px;
+  color: var(--text-primary);
+  letter-spacing: 0.2em;
+  word-break: break-all;
+  user-select: all;
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   MILEAGE EDITOR
+   ════════════════════════════════════════════════════════════════ */
+
+.mileage-display {
+  font-size: 30px;
+  font-weight: 900;
+  color: var(--text-primary);
+  text-transform: uppercase;
+}
+
+.mileage-input {
+  font-size: 24px;
+  font-weight: 900;
+  width: 144px;
+  border: none;
+  border-bottom: 2px solid var(--accent);
+  background: transparent;
+  color: var(--text-primary);
+  outline: none;
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   SETUP SCREEN step numbers
+   ════════════════════════════════════════════════════════════════ */
+
+.step-number {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent-glow);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 900;
+  flex-shrink: 0;
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   LOGO ICON
+   ════════════════════════════════════════════════════════════════ */
+
+.logo-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 20px var(--accent-glow);
+}
+.logo-icon.sm  { width: 28px; height: 28px; border-radius: var(--radius-sm); }
+.logo-icon.md  { width: 36px; height: 36px; }
+.logo-icon.lg  { width: 56px; height: 56px; border-radius: var(--radius-lg); }
+
+/* Modal header icon */
+.modal-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal-icon.accent  { background: var(--accent); }
+.modal-icon.success { background: var(--btn-success); }
+.modal-icon.danger  { background: var(--btn-danger); }
+.modal-icon.info    { background: rgba(59,130,246,0.8); }
